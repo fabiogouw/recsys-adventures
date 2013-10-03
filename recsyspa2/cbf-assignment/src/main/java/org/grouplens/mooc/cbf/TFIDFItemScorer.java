@@ -53,8 +53,11 @@ public class TFIDFItemScorer extends AbstractItemScorer {
             // Get the item vector for this item
             SparseVector iv = model.getItemVector(e.getKey());
             // TODO Compute the cosine of this item and the user's profile, store it in the output vector
+            double dotProduct = userVector.dot(iv);
+            double cosine = dotProduct / (iv.norm() * userVector.norm());
+            output.set(e, cosine);
             // TODO And remove this exception to say you've implemented it
-            throw new UnsupportedOperationException("stub implementation");
+            //throw new UnsupportedOperationException("stub implementation");
         }
     }
 
@@ -78,8 +81,11 @@ public class TFIDFItemScorer extends AbstractItemScorer {
             // We'll never have a null preference. But in LensKit, ratings can have null
             // preferences to express the user unrating an item
             if (p != null && p.getValue() >= 3.5) {
-                // The user likes this item!
-                // TODO Get the item's vector and add it to the user's profile
+            	// The user likes this item!
+            	long tagId = p.getItemId();
+            	// Get the item's vector and add it to the user's profile
+            	SparseVector itemVector = model.getItemVector(tagId);
+            	profile.add(itemVector);
             }
         }
 

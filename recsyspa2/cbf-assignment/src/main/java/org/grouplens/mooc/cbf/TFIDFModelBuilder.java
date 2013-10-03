@@ -13,7 +13,7 @@ import org.grouplens.mooc.cbf.dao.ItemTagDAO;
 import javax.inject.Inject;
 import javax.inject.Provider;
 
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -76,29 +76,24 @@ public class TFIDFModelBuilder implements Provider<TFIDFModel> {
             work.clear();
             // Now the vector is empty (all keys are 'unset').
 
-            // TODO Populate the work vector with the number of times each tag is applied to this item.
-
             List<String> tagsForThisMovie = dao.getItemTags(item);
-            Map<Long, Integer> tagCountMap = Maps.newHashMap();
-            for(String tag : tagsForThisMovie){
+            work.fill(0);	// every tag starts with zero ocurrences
+            List<Long> uniqueTagIdOcurrences = new ArrayList<Long>();
+            for(String tag : tagsForThisMovie)	{
             	long tagId = tagIds.get(tag);
-            	if(!tagCountMap.containsKey(tagId)){
-            		tagCountMap.put(tagId, 1);
-            	}
-            	else{
-            		int actual = tagCountMap.get(tagId);
-            		tagCountMap.put(tagId, actual + 1);
-            	}
-            }
-            for (Map.Entry<Long, Integer> entry : tagCountMap.entrySet()) {
-            	Long tagId = entry.getKey();
-            	Integer numberOfTimes = entry.getValue();
+            	double numberOfTimes = work.get(tagId);
+            	numberOfTimes++;
+            	// Populate the work vector with the number of times each tag is applied to this item.
             	work.set(tagId, numberOfTimes);
+            	
+            	if(!uniqueTagIdOcurrences.contains(tagId)){
+            		double uniqueNumberOfTimes = docFreq.get(tagId);
+                	// Increment the document frequency vector once for each unique tag on the item.
+            		uniqueNumberOfTimes++;
+                	docFreq.set(tagId, uniqueNumberOfTimes);
+                	uniqueTagIdOcurrences.add(tagId);
+            	}
             }
-            
-            // TODO Increment the document frequency vector once for each unique tag on the item.
-
-            
             
             // Save a shrunk copy of the vector (only storing tags that apply to this item) in
             // our map, we'll add IDF and normalize later.
@@ -109,8 +104,13 @@ public class TFIDFModelBuilder implements Provider<TFIDFModel> {
         // Now we've seen all the items, so we have each item's TF vector and a global vector
         // of document frequencies.
         // Invert and log the document frequency.  We can do this in-place.
+        double numberOfDocuments = (double)docFreq.norm();
         for (VectorEntry e: docFreq.fast()) {
-            // TODO Update this document frequency entry to be a log-IDF value
+        	long tagId = e.getKey();
+        	double numberOfDocumentsWithTerm = e.getValue();
+        	double newValue = Math.log(numberOfDocuments / numberOfDocumentsWithTerm);
+        	// Update this document frequency entry to be a log-IDF value
+        	docFreq.set(tagId, newValue);
         }
 
         // Now docFreq is a log-IDF vector.
@@ -120,9 +120,14 @@ public class TFIDFModelBuilder implements Provider<TFIDFModel> {
         for (Map.Entry<Long,MutableSparseVector> entry: itemVectors.entrySet()) {
             MutableSparseVector tv = entry.getValue();
             // TODO Convert this vector to a TF-IDF vector
-
+            
+            tv.multiply(docFreq);
+            
             // TODO Normalize the TF-IDF vector to be a unit vector
             // HINT The method tv.norm() will give you the Euclidian length of the vector
+            
+            double norm = tv.norm();
+            tv.multiply(1/norm);
             
             // Store a frozen (immutable) version of the vector in the model data.
             modelData.put(entry.getKey(), tv.freeze());
