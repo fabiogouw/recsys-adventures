@@ -104,7 +104,7 @@ public class TFIDFModelBuilder implements Provider<TFIDFModel> {
         // Now we've seen all the items, so we have each item's TF vector and a global vector
         // of document frequencies.
         // Invert and log the document frequency.  We can do this in-place.
-        double numberOfDocuments = (double)docFreq.norm();
+        double numberOfDocuments = (double)items.size();
         for (VectorEntry e: docFreq.fast()) {
         	long tagId = e.getKey();
         	double numberOfDocumentsWithTerm = e.getValue();

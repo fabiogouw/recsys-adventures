@@ -52,12 +52,10 @@ public class TFIDFItemScorer extends AbstractItemScorer {
             // Score the item represented by 'e'.
             // Get the item vector for this item
             SparseVector iv = model.getItemVector(e.getKey());
-            // TODO Compute the cosine of this item and the user's profile, store it in the output vector
+            // Compute the cosine of this item and the user's profile, store it in the output vector
             double dotProduct = userVector.dot(iv);
             double cosine = dotProduct / (iv.norm() * userVector.norm());
             output.set(e, cosine);
-            // TODO And remove this exception to say you've implemented it
-            //throw new UnsupportedOperationException("stub implementation");
         }
     }
 

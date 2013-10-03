@@ -23,7 +23,7 @@ import java.util.List;
  */
 public class CBFMain {
     private static final Logger logger = LoggerFactory.getLogger(CBFMain.class);
-
+    // 5325 5007 3341 247 2825
     public static void main(String[] args) throws RecommenderBuildException {
         LenskitConfiguration config = configureRecommender();
 
