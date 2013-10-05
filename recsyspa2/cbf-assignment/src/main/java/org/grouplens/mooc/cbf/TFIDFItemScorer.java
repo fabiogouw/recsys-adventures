@@ -72,23 +72,35 @@ public class TFIDFItemScorer extends AbstractItemScorer {
         // Fill it with 0's initially - they don't like anything
         profile.fill(0);
 
+        double averageRating = getAverageRating(userRatings);
         // Iterate over the user's ratings to build their profile
         for (Rating r: userRatings) {
             // In LensKit, ratings are expressions of preference
             Preference p = r.getPreference();
             // We'll never have a null preference. But in LensKit, ratings can have null
             // preferences to express the user unrating an item
-            if (p != null && p.getValue() >= 3.5) {
-            	// The user likes this item!
-            	long tagId = p.getItemId();
+            if (p != null) {
+            	long movieId = p.getItemId();
             	// Get the item's vector and add it to the user's profile
-            	SparseVector itemVector = model.getItemVector(tagId);
-            	profile.add(itemVector);
+            	SparseVector itemVector = model.getItemVector(movieId);
+            	MutableSparseVector itemVectorCopy = itemVector.mutableCopy();
+            	itemVectorCopy.multiply(p.getValue() - averageRating);
+            	profile.add(itemVectorCopy);
+            	
             }
         }
 
         // The profile is accumulated, return it.
         // It is good practice to return a frozen vector.
         return profile.freeze();
+    }
+    
+    private double getAverageRating(List<Rating> ratings){
+    	double sum = 0;
+    	for (Rating r: ratings) {
+    		Preference p = r.getPreference();
+    		sum += p.getValue();
+    	}
+    	return sum / ratings.size();
     }
 }

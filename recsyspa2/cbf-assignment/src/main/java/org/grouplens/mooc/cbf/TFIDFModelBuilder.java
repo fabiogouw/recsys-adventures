@@ -119,11 +119,11 @@ public class TFIDFModelBuilder implements Provider<TFIDFModel> {
         Map<Long,SparseVector> modelData = Maps.newHashMap();
         for (Map.Entry<Long,MutableSparseVector> entry: itemVectors.entrySet()) {
             MutableSparseVector tv = entry.getValue();
-            // TODO Convert this vector to a TF-IDF vector
+            // Convert this vector to a TF-IDF vector
             
             tv.multiply(docFreq);
             
-            // TODO Normalize the TF-IDF vector to be a unit vector
+            // Normalize the TF-IDF vector to be a unit vector
             // HINT The method tv.norm() will give you the Euclidian length of the vector
             
             double norm = tv.norm();
