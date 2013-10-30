@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project name="maven-antrun-" default="main"  >
+<target name="main">
+  <zip destfile="F:\Projetos\Java2\recsyspa4\eval-assignment\target/eval-assignment.zip">
+    <mappedresources>
+      <fileset dir="F:\Projetos\Java2\recsyspa4\eval-assignment">
+        <include name="pom.xml"/>
+        <include name="src/**/*.java"/>
+        <include name="src/**/*.groovy"/>
+        <include name="src/main/resources/*.xml"/>
+        <include name="data/*.csv"/>
+      </fileset>
+      <globmapper to="eval-assignment/*" from="*"/>
+    </mappedresources>
+  </zip>
+</target>
+</project>
