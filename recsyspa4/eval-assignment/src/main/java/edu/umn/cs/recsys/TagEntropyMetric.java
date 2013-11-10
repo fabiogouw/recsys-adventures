@@ -1,7 +1,10 @@
 package edu.umn.cs.recsys;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
+
 import edu.umn.cs.recsys.dao.ItemTagDAO;
+
 import org.grouplens.lenskit.core.LenskitRecommender;
 import org.grouplens.lenskit.eval.algorithm.AlgorithmInstance;
 import org.grouplens.lenskit.eval.data.traintest.TTDataSet;
@@ -14,7 +17,10 @@ import org.grouplens.lenskit.vectors.MutableSparseVector;
 import org.grouplens.lenskit.vectors.VectorEntry;
 
 import javax.annotation.Nonnull;
+
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A metric that measures the tag entropy of the recommended items.
@@ -71,6 +77,7 @@ public class TagEntropyMetric extends AbstractTestUserMetric {
     private class TagEntropyAccumulator implements TestUserMetricAccumulator {
         private double totalEntropy = 0;
         private int userCount = 0;
+        private final double log2 = Math.log(2);
 
         /**
          * Evaluate a single test user's recommendations or predictions.
@@ -92,12 +99,45 @@ public class TagEntropyMetric extends AbstractTestUserMetric {
             TagVocabulary vocab = lkrec.get(TagVocabulary.class);
 
             double entropy = 0;
-
-            // TODO Implement the entropy metric
-
+            
+            MutableSparseVector allTags = vocab.newTagVector();
+            allTags.fill(0);
+            
+            for (ScoredId movie: recommendations) {
+            	Set<String> uniqueMovieTags = getUniqueTags(tagDAO.getItemTags(movie.getId()));
+            	double totalUniqueTags = (double)uniqueMovieTags.size();
+            	for(String tag : uniqueMovieTags) {
+            		long tagId = vocab.getTagId(tag);
+		            double current = allTags.get(tagId);
+		            current += 1 / totalUniqueTags;
+		            allTags.set(tagId, current);
+            	}
+            }
+            
+            //double totalMoviesTags = (double)allTags.size();
+            double totalMovies = (double)recommendations.size();
+            allTags.multiply(1 / totalMovies);
+            
+            for (VectorEntry e: allTags.fast(VectorEntry.State.EITHER)) {
+            	double probability = e.getValue();
+            	if(probability > 0) {
+            		entropy += (-1 * probability) * Math.log(probability)/log2;
+            	}
+            }
+        
             totalEntropy += entropy;
             userCount += 1;
-            return new Object[]{entropy};
+            return new Object[] { entropy };
+        }
+        
+        private Set<String> getUniqueTags(List<String> tags){
+        	Set<String> uniqueMovieTags = Sets.newHashSet();
+        	for(String tag : tags) {
+        		String normed = tag.toLowerCase();
+        		if(!uniqueMovieTags.contains(normed))
+        			uniqueMovieTags.add(normed);
+        	}
+        	return uniqueMovieTags;
         }
 
         /**
