@@ -1,8 +1,10 @@
 package edu.umn.cs.recsys.ii;
 
 import com.google.common.collect.ImmutableMap;
+
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
+
 import org.grouplens.lenskit.collections.LongUtils;
 import org.grouplens.lenskit.core.Transient;
 import org.grouplens.lenskit.cursors.Cursor;
@@ -18,12 +20,15 @@ import org.grouplens.lenskit.vectors.ImmutableSparseVector;
 import org.grouplens.lenskit.vectors.MutableSparseVector;
 import org.grouplens.lenskit.vectors.SparseVector;
 import org.grouplens.lenskit.vectors.VectorEntry;
+import org.grouplens.lenskit.vectors.similarity.CosineVectorSimilarity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
+
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,13 +39,17 @@ import java.util.Map;
 public class SimpleItemItemModelBuilder implements Provider<SimpleItemItemModel> {
     private final ItemDAO itemDao;
     private final UserEventDAO userEventDao;
-    private static final Logger logger = LoggerFactory.getLogger(SimpleItemItemModelBuilder.class);;
+    private static final Logger logger = LoggerFactory.getLogger(SimpleItemItemModelBuilder.class);
+    private final CosineVectorSimilarity cosCalculator;
+    private final ScoredIdComparator scoreComparator;
 
     @Inject
     public SimpleItemItemModelBuilder(@Transient ItemDAO idao,
                                       @Transient UserEventDAO uedao) {
         itemDao = idao;
         userEventDao = uedao;
+        cosCalculator = new CosineVectorSimilarity();
+        scoreComparator = new ScoredIdComparator();
     }
 
     @Override
@@ -52,11 +61,30 @@ public class SimpleItemItemModelBuilder implements Provider<SimpleItemItemModel>
         // Get all items - you might find this useful
         LongSortedSet items = LongUtils.packedSet(itemVectors.keySet());
         // Map items to vectors of item similarities
-        Map<Long,MutableSparseVector> itemSimilarities = new HashMap<Long, MutableSparseVector>();
-
-        // TODO Compute the similarities between each pair of items
+        //Map<Long,MutableSparseVector> itemSimilarities = new HashMap<Long, MutableSparseVector>();
+        
+        Map<Long,List<ScoredId>> nbrhoods = new HashMap<Long,List<ScoredId>>();
+        
+        for(long itemId : items){
+        	ScoredIdListBuilder builder = ScoredIds.newListBuilder();
+        	SparseVector itemUsersRatings = itemVectors.get(itemId);
+        	for(long itemIdToCompare : items) {
+        		
+        		if(itemId != itemIdToCompare) {
+        			SparseVector itemUsersRatingsToCompare = itemVectors.get(itemIdToCompare);
+        			double similarity = cosCalculator.similarity(itemUsersRatings, itemUsersRatingsToCompare);
+	       			if(similarity > 0) {
+	       				builder.add(itemIdToCompare, similarity);
+	       			}
+       			}
+        	}
+			builder.sort(scoreComparator);
+        	nbrhoods.put(itemId, builder.build());
+        }
+        
+        // Compute the similarities between each pair of items ***
         // It will need to be in a map of longs to lists of Scored IDs to store in the model
-        return new SimpleItemItemModel(Collections.EMPTY_MAP);
+        return new SimpleItemItemModel(nbrhoods);
     }
 
     /**
@@ -80,7 +108,16 @@ public class SimpleItemItemModelBuilder implements Provider<SimpleItemItemModel>
             for (UserHistory<Event> evt: stream) {
                 MutableSparseVector vector = RatingVectorUserHistorySummarizer.makeRatingVector(evt).mutableCopy();
                 // vector is now the user's rating vector
-                // TODO Normalize this vector and store the ratings in the item data
+                long userId = evt.getUserId();
+                double userAverageRating = getAverageRating(vector);
+                for (VectorEntry e: vector.fast(VectorEntry.State.EITHER)) {
+                	long itemId = e.getKey();
+                	double rating = e.getValue();
+                	Map<Long, Double> userRatingsMap = itemData.get(itemId);
+                	double weigthedRating = rating - userAverageRating;
+                	userRatingsMap.put(userId, weigthedRating);
+                }
+                // Normalize this vector and store the ratings in the item data ***
             }
         } finally {
             stream.close();
@@ -93,5 +130,19 @@ public class SimpleItemItemModelBuilder implements Provider<SimpleItemItemModel>
             itemVectors.put(entry.getKey(), vec.immutable());
         }
         return itemVectors;
+    }
+    
+    private double getAverageRating(SparseVector ratings){
+    	double total = 0;
+    	for (VectorEntry e: ratings.fast(VectorEntry.State.EITHER)) {
+    		total += e.getValue();
+    	}
+    	return total / ratings.size();
+    }
+    
+    private class ScoredIdComparator implements Comparator<ScoredId> {
+        public int compare(ScoredId conta, ScoredId outraConta) {
+            return Double.compare(outraConta.getScore(), conta.getScore());
+        }
     }
 }

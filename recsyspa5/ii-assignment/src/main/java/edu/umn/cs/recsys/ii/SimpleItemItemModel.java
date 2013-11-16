@@ -22,7 +22,7 @@ public class SimpleItemItemModel implements Serializable {
     /**
      * Create a new item-item model.
      * @param nbrhoods A mapping of items to neighborhoods.  The neighborhoods
-     *                 must be sorted by similarity in non-increasing order (most
+     *                 must be sorted by similarity in non-decreasing order (most
      *                 similar neighbors first).  They should not have any negative
      *                 scores.
      */
