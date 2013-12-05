@@ -27,6 +27,8 @@ public class SVDItemScorer extends AbstractItemScorer {
     private final ItemScorer baselineScorer;
     private final UserEventDAO userEvents;
 
+    // 572:671 572:462 572:9802 572:197 572:809 2801:9806 2801:38 2801:8358 2801:857 2801:8467 515:857 515:105 515:1900 515:141 515:7443 1269:640 1269:9802 1269:153 1269:272 1269:77 2895:601 2895:9802 2895:275 2895:7443 2895:629
+    
     /**
      * Construct an SVD item scorer using a model.
      * @param m The model to use when generating scores.
@@ -52,12 +54,22 @@ public class SVDItemScorer extends AbstractItemScorer {
      */
     @Override
     public void score(long user, @Nonnull MutableSparseVector scores) {
-        // TODO Score the items in the key domain of scores
-
-        for (VectorEntry e: scores.fast(VectorEntry.State.EITHER)) {
-            long item = e.getKey();
-            // TODO Set the scores
-        }
+    	RealMatrix weights = model.getFeatureWeights();
+    	RealMatrix umat = model.getUserVector(user);
+    	if(umat != null) {
+	        // Score the items in the key domain of scores ***
+	        for (VectorEntry e: scores.fast(VectorEntry.State.EITHER)) {
+	            long item = e.getKey();
+	            RealMatrix imat = model.getItemVector(item).transpose();
+	            // Set the scores ***
+	            RealMatrix r = umat.multiply(weights).multiply(imat);
+	            double prediction = r.getEntry(0, 0);
+	            double baseline = baselineScorer.score(user, item);
+	            scores.set(item, prediction + baseline);
+	        }
+    	}
+    	else
+    		scores.clear();
     }
 
     /**

@@ -80,10 +80,17 @@ public class SVDModelBuilder implements Provider<SVDModel> {
         SingularValueDecomposition svd = new SingularValueDecomposition(matrix);
 
         // Third, truncate the decomposed matrix
-        // TODO Truncate the matrices and construct the SVD model
-
-        // TODO Replace this throw line with returning the model when you are finished
-        throw new UnsupportedOperationException("SVD model not yet implemented");
+        // Truncate the matrices and construct the SVD model ***
+        RealMatrix umat = svd.getU();
+        umat = umat.getSubMatrix(0, umat.getRowDimension() - 1, 0, featureCount - 1);
+        RealMatrix imat = svd.getV();
+        imat = imat.getSubMatrix(0, imat.getRowDimension() - 1, 0, featureCount - 1);
+        RealMatrix weights = svd.getS().getSubMatrix(0, featureCount - 1, 0, featureCount - 1);
+        
+        return new SVDModel(userMapping, itemMapping, umat, imat, weights);
+        
+        // Replace this throw line with returning the model when you are finished ***
+        //throw new UnsupportedOperationException("SVD model not yet implemented");
     }
 
     /**
@@ -111,7 +118,14 @@ public class SVDModelBuilder implements Provider<SVDModel> {
                 MutableSparseVector ratings = Ratings.userRatingVector(user.filter(Rating.class));
                 MutableSparseVector baselines = MutableSparseVector.create(ratings.keySet());
                 baselineScorer.score(user.getUserId(), baselines);
-                // TODO Populate this user's row with their ratings, minus the baseline scores
+                ratings.subtract(baselines);	// minus the baseline scores
+                // Populate this user's row with their ratings ***
+                for (VectorEntry rating: ratings.fast(VectorEntry.State.EITHER)) {
+                	long itemId = rating.getKey();
+                	int i = itemMapping.getIndex(itemId);
+                	double value = rating.getValue();
+                	matrix.setEntry(u, i, value);
+                }
             }
         } finally {
             users.close();
